@@ -1,0 +1,32 @@
+{
+    "manifest_version": 3,
+    "name": "Tracker",
+    "version": "1.0",
+    "permissions": [
+        "tabs",
+        "storage",
+        "identity",
+        "windows"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "Tracker using Google Sheets"
+    },
+    "icons": {
+        "16": "icon.png", 
+        "48": "icon.png",  
+        "128": "icon.png"  
+    },
+    "oauth2": {
+        "client_id": "601922922281-jo9oa6slsi3dbsu4i8vf3h80bpihcha2.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/spreadsheets"
+      ]
+    }
+  }
+  
+  
+  
+  
