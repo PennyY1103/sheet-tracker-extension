@@ -115,15 +115,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('applyFormattingCheckbox').addEventListener('change', () => {
+        const sheetId = document.getElementById('sheetId').value;
+        const sheetName = document.getElementById('sheetName').value;
+    
         if (document.getElementById('applyFormattingCheckbox').checked) {
-            chrome.storage.local.get(['sheetId', 'sheetName', 'formattingApplied'], (items) => {
-                const { sheetId, sheetName, formattingApplied } = items;
+            const formattingKey = `formattingApplied_${sheetId}_${sheetName}`;
+            chrome.storage.local.get([formattingKey], (items) => {
+                const formattingApplied = items[formattingKey];
+    
                 if (sheetId && sheetName && !formattingApplied) {
-                    chrome.identity.getAuthToken({ interactive: true }, function(token) {
-                        applyConditionalFormatting(sheetId, sheetName, token);
+                    chrome.identity.getAuthToken({ interactive: true }, function (token) {
+                        applyConditionalFormatting(sheetId, sheetName, token, formattingKey);
                     });
                 } else if (formattingApplied) {
-                    showMessage('Conditional formatting already applied.', 'info');
+                    showMessage('Conditional formatting already applied for this sheet.', 'info');
                 } else {
                     showMessage('Please provide both Sheet ID and Sheet Name.', 'error');
                 }
@@ -185,7 +190,7 @@ function saveToGoogleSheets(sheetId, sheetName, Title, Url, Description, status,
     });
 }
 
-function applyConditionalFormatting(sheetId, sheetName, token) {
+function applyConditionalFormatting(sheetId, sheetName, token, formattingKey) {
     fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties,conditionalFormats)&includeGridData=false`, {
         method: 'GET',
         headers: {
@@ -296,14 +301,14 @@ function applyConditionalFormatting(sheetId, sheetName, token) {
         ];
 
         const rulesToAdd = newRules.filter(newRule => {
-            return !existingRules.some(existingRule => 
+            return !existingRules.some(existingRule =>
                 JSON.stringify(existingRule.booleanRule) === JSON.stringify(newRule.booleanRule)
             );
         });
 
         if (rulesToAdd.length === 0) {
             showMessage('Conditional formatting already applied.', 'info');
-            chrome.storage.local.set({ formattingApplied: true }); 
+            chrome.storage.local.set({ [formattingKey]: true });
             return;
         }
 
@@ -323,7 +328,7 @@ function applyConditionalFormatting(sheetId, sheetName, token) {
         .then(data => {
             console.log('Conditional formatting applied:', data);
             showMessage('Conditional formatting applied!', 'success');
-            chrome.storage.local.set({ formattingApplied: true }); 
+            chrome.storage.local.set({ [formattingKey]: true });
         })
         .catch(error => {
             console.error('Error:', error);
