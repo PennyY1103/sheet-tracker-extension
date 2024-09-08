@@ -6,23 +6,30 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
-            max-width: 350px; 
+            padding: 10px;
             background-color: #f9f9f9;
             color: #333;
             margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            box-sizing: border-box; 
+            width: 200px; 
+            position: relative; 
         }
+
         h3 {
-            color: #AFBEA3;
-            margin-bottom: 20px;
+            color: #809570;
             text-align: center;
             font-size: 1.5em; 
         }
+
         .form-group {
             margin-bottom: 15px;
             display: flex;
             flex-direction: column;
         }
+
         input[type="text"], textarea {
             font-family: Arial, sans-serif;
             width: 100%; 
@@ -33,57 +40,74 @@
             box-sizing: border-box;
             font-size: 1em; 
         }
+
         textarea {
-            height: 80px;
+            height: 60px;
             resize: vertical;
         }
+
         button {
             width: 100%;
             padding: 12px;
-            background-color: #AFBEA3;
+            background-color: #809570;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 1em; 
         }
+
         button:hover {
             background-color: #c3d2b6;
         }
+
         button:active {
-            background-color: #AFBEA3;
+            background-color: #809570;
         }
+
         #message {
             display: none;
-            padding: 10px;
             margin-top: 10px;
+            padding: 10px;
             border-radius: 4px;
-            background-color: #e7f1e7;
-            color: #AFBEA3;
-            font-size: 0.9em; 
+            background-color: #fdd;
+            color: #a94442;
+            font-size: 0.9em;
+            text-align: center;
+            position: relative; 
         }
     </style>
 </head>
 <body>
     <h3>Tracker</h3>
-    <i id="refreshButton" class="fa fa-refresh" style="cursor: pointer;"></i>
-    <div class="form-group">
-        <input type="text" id="sheetId" placeholder="Google Sheets ID" required />
+    <div class="form-group" style="display: none;">
+        <input type="text" id="date" placeholder="Date" />
     </div>
     <div class="form-group">
-        <input type="text" id="sheetName" placeholder="Google Sheet Name" required />
+        <select id="sheetId">
+            <option value="">Select a File</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <select id="sheetName">
+            <option value="">Select a Sheet Name</option>
+        </select>
     </div>
     <div class="form-group">
         <input type="text" id="Title" placeholder="Title" required />
     </div>
     <div class="form-group">
-        <input type="text" id="Url" placeholder="URL" required />
-    </div>
-    <div class="form-group">
         <textarea id="Description" placeholder="Description" required></textarea>
     </div>
     <div class="form-group">
-        <input type="text" id="status" placeholder="Status (todo or done)" />
+        <select id="status">
+            <option value="">Select Status</option>
+            <option value="todo">todo</option>
+            <option value="submitted">submitted</option>
+            <option value="qualified">qualified</option>
+            <option value="passed">passed</option>
+            <option value="failed">failed</option>
+        </select>
     </div>
     <div class="form-group">
         <textarea id="notes" placeholder="Notes"></textarea>
@@ -96,4 +120,3 @@
     <script src="popup.js"></script>
 </body>
 </html>
-
