@@ -34,9 +34,20 @@ function loadSheetIdDropdown() {
                 option.text = sheetName;
                 sheetNameSelect.appendChild(option);
             });
+
+            sheetNameSelect.addEventListener('change', function () {
+                const selectedSheetName = this.value;
+                
+                if (selectedSheetId === "1lLT1zc4BEeg0leUaXsNhbPIR63t2f7NX9SKHK3jS4IY" && selectedSheetName === "Job Application") {
+                    document.getElementById('Description').value = `Company:\nReqmt:\nSalary:\nLocation:\nPosted:\nSource:`;
+                } else {
+                    document.getElementById('Description').value = ''; 
+                }
+            });
         }
     });
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     loadSheetIdDropdown();
