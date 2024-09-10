@@ -22,30 +22,37 @@ function loadSheetIdDropdown() {
 
     sheetIdSelect.addEventListener('change', function () {
         const selectedSheetId = this.value;
-        const sheetNameSelect = document.getElementById('sheetName');
-
-        sheetNameSelect.innerHTML = '<option value="">Select a Sheet Name</option>';
-        
-        if (selectedSheetId && sheetData[selectedSheetId]) {
-            const sheetNames = sheetData[selectedSheetId].sheetNames;
-            sheetNames.forEach(sheetName => {
-                const option = document.createElement('option');
-                option.value = sheetName;
-                option.text = sheetName;
-                sheetNameSelect.appendChild(option);
-            });
-
-            sheetNameSelect.addEventListener('change', function () {
-                const selectedSheetName = this.value;
-                
-                if (selectedSheetId === "1lLT1zc4BEeg0leUaXsNhbPIR63t2f7NX9SKHK3jS4IY" && selectedSheetName === "Job Application") {
-                    document.getElementById('Description').value = `Company:\nReqmt:\nSalary:\nLocation:\nPosted:\nSource:`;
-                } else {
-                    document.getElementById('Description').value = ''; 
-                }
-            });
-        }
+        loadSheetNameDropdown(selectedSheetId);
     });
+}
+
+function loadSheetNameDropdown(selectedSheetId) {
+    const sheetNameSelect = document.getElementById('sheetName');
+    sheetNameSelect.innerHTML = '<option value="">Select a Sheet Name</option>';
+
+    if (selectedSheetId && sheetData[selectedSheetId]) {
+        const sheetNames = sheetData[selectedSheetId].sheetNames;
+        sheetNames.forEach(sheetName => {
+            const option = document.createElement('option');
+            option.value = sheetName;
+            option.text = sheetName;
+            sheetNameSelect.appendChild(option);
+        });
+
+        sheetNameSelect.addEventListener('change', function () {
+            applyDescriptionTemplate(selectedSheetId, this.value);
+        });
+    }
+}
+
+function applyDescriptionTemplate(sheetId, sheetName) {
+    const descriptionField = document.getElementById('Description');
+    
+    if (sheetId === "1lLT1zc4BEeg0leUaXsNhbPIR63t2f7NX9SKHK3jS4IY" && sheetName === "Job Application") {
+        descriptionField.value = `Company:\nReqmt:\nSalary:\nLocation:\nPosted:\nSource:`;
+    } else {
+        descriptionField.value = ''; 
+    }
 }
 
 
@@ -74,20 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('notes').value = items.notes || '';
 
         if (sheetId) {
-            const sheetNameSelect = document.getElementById('sheetName');
-            sheetNameSelect.innerHTML = '<option value="">Select a Sheet Name</option>';
-            
-            if (sheetData[sheetId]) {
-                const sheetNames = sheetData[sheetId].sheetNames;
-                sheetNames.forEach(name => {
-                    const option = document.createElement('option');
-                    option.value = name;
-                    option.text = name;
-                    sheetNameSelect.appendChild(option);
-                });
+            loadSheetNameDropdown(sheetId); 
 
-                document.getElementById('sheetName').value = sheetName;
-            }
+            applyDescriptionTemplate(sheetId, sheetName);
         }
     });
 
