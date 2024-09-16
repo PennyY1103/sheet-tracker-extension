@@ -3,26 +3,27 @@
     "name": "Tracker",
     "version": "1.0",
     "permissions": [
-      "tabs",
-      "storage",
-      "identity"
+        "identity",
+        "activeTab",
+        "storage",
+        "scripting"
     ],
-    "action": {
-      "default_popup": "popup.html",
-      "default_title": "Tracker using Google Sheets"
-    },
     "oauth2": {
-      "client_id": "601922922281-jo9oa6slsi3dbsu4i8vf3h80bpihcha2.apps.googleusercontent.com",
-      "scopes": [
+        "client_id": "601922922281-jo9oa6slsi3dbsu4i8vf3h80bpihcha2.apps.googleusercontent.com",
+        "scopes": [
+        "https://www.googleapis.com/auth/drive.readonly",
         "https://www.googleapis.com/auth/spreadsheets"
-      ]
+        ]
+    }
+    ,
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "icon.png"
     },
     "icons": {
-      "16": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
+        "128": "icon.png"
     }
-  }
-  
-  
-  
+}

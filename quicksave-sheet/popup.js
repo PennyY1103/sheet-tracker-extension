@@ -1,369 +1,489 @@
-const sheetData = {
-    "1lLT1zc4BEeg0leUaXsNhbPIR63t2f7NX9SKHK3jS4IY": {
-        displayName: "Job Tracker",
-        sheetNames: ["Job Application", "Company Website", "Career Website", "Network Contact", "Interview", "Project", "Other"]
-    },
-    "1vAgUfouhiH-NtlaEeGs1ZocrnPxVRYVF4jJqMd1LYOo": {
-        displayName: "Study Tracker CS",
-        sheetNames: ["LeetCode", "Resource"]
-    }
-};
+function showMessage(message, isError = false) {
+    const messageDiv = document.getElementById('message');
+    messageDiv.style.color = isError ? 'red' : 'green'; 
+    messageDiv.innerText = message;
 
-function loadSheetIdDropdown() {
-    const sheetIdSelect = document.getElementById('sheetId');
-    sheetIdSelect.innerHTML = '<option value="">Select a File</option>'; 
-
-    for (const sheetId in sheetData) {
-        const option = document.createElement('option');
-        option.value = sheetId;
-        option.text = sheetData[sheetId].displayName; 
-        sheetIdSelect.appendChild(option);
-    }
-
-    sheetIdSelect.addEventListener('change', function () {
-        const selectedSheetId = this.value;
-        loadSheetNameDropdown(selectedSheetId);
-    });
+    setTimeout(() => {
+        messageDiv.innerText = '';
+    }, 3000);
 }
 
-function loadSheetNameDropdown(selectedSheetId) {
-    const sheetNameSelect = document.getElementById('sheetName');
-    sheetNameSelect.innerHTML = '<option value="">Select a Sheet Name</option>';
+function saveSelectedSheetAndTab(sheetId, tabName) {
+    localStorage.setItem('selectedSheet', sheetId);
+    localStorage.setItem('selectedTab', tabName);
+}
 
-    if (selectedSheetId && sheetData[selectedSheetId]) {
-        const sheetNames = sheetData[selectedSheetId].sheetNames;
-        sheetNames.forEach(sheetName => {
-            const option = document.createElement('option');
-            option.value = sheetName;
-            option.text = sheetName;
-            sheetNameSelect.appendChild(option);
-        });
+function loadSelectedSheetAndTab() {
+    const savedSheet = localStorage.getItem('selectedSheet');
+    const savedTab = localStorage.getItem('selectedTab');
+    return { sheet: savedSheet, tab: savedTab };
+}
 
-        sheetNameSelect.addEventListener('change', function () {
-            applyDescriptionTemplate(selectedSheetId, this.value);
+function storeInputValues() {
+    const values = {};
+    document.querySelectorAll('#data-entry-fields input').forEach(input => {
+        values[input.id] = input.value;
+    });
+    localStorage.setItem('dataEntryValues', JSON.stringify(values));
+}
+
+function loadInputValues() {
+    const savedValues = localStorage.getItem('dataEntryValues');
+    if (savedValues) {
+        const values = JSON.parse(savedValues);
+        document.querySelectorAll('#data-entry-fields input').forEach(input => {
+            if (values[input.id]) {
+                input.value = values[input.id];
+            }
         });
     }
 }
 
-function applyDescriptionTemplate(sheetId, sheetName) {
-    const descriptionField = document.getElementById('Description');
-    
-    if (sheetId === "1lLT1zc4BEeg0leUaXsNhbPIR63t2f7NX9SKHK3jS4IY" && sheetName === "Job Application") {
-        descriptionField.value = `Company:\nReqmt:\nSalary:\nLocation:\nPosted:\nSource:`;
-    } else {
-        descriptionField.value = ''; 
+function clearInputFields() {
+    localStorage.removeItem('dataEntryValues');
+    document.querySelectorAll('#data-entry-fields input').forEach(input => {
+        input.value = '';
+    });
+}
+
+async function fetchAllSheets(token) {
+    let allSheets = localStorage.getItem('cachedSheets'); 
+    if (allSheets) {
+        return JSON.parse(allSheets); 
+    }
+
+    let sheetsData = [];
+    let nextPageToken = null;
+    const baseURL = 'https://www.googleapis.com/drive/v3/files';
+    const query = "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false";
+
+    try {
+        do {
+            const response = await fetch(`${baseURL}?q=${encodeURIComponent(query)}&fields=nextPageToken,files(id,name)&pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Error fetching sheets: ${response.status} ${response.statusText}\n${errorText}`);
+                showMessage(`Error fetching sheets: ${response.status} ${response.statusText}`, true);
+                throw new Error(`Error fetching sheets: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            sheetsData = sheetsData.concat(data.files);
+            nextPageToken = data.nextPageToken;
+        } while (nextPageToken);
+
+        localStorage.setItem('cachedSheets', JSON.stringify(sheetsData));
+
+        return sheetsData;
+
+    } catch (error) {
+        console.error("Error fetching sheets:", error);
+        showMessage(`Error fetching sheets: ${error.message}`, true);
+        return [];
     }
 }
 
+async function fetchAllTabs(token, sheetId) {
+    let cachedTabs = localStorage.getItem(`cachedTabs_${sheetId}`); 
+    if (cachedTabs) {
+        return JSON.parse(cachedTabs);
+    }
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadSheetIdDropdown();
+    try {
+        const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-    const currentDate = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = currentDate;
-
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs.length > 0) {
-            const currentTabUrl = tabs[0].url; 
-            chrome.storage.local.set({ Url: currentTabUrl }); 
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Error fetching tabs: ${response.status} ${response.statusText}\n${errorText}`);
+            showMessage(`Error fetching tabs: ${response.status} ${response.statusText}`, true);
+            throw new Error(`Error fetching tabs: ${response.status} ${response.statusText}`);
         }
-    });
 
-    chrome.storage.local.get(['sheetId', 'sheetName', 'Title', 'Description', 'status', 'notes'], (items) => {
-        const sheetId = items.sheetId || '';
-        const sheetName = items.sheetName || '';
+        const sheetData = await response.json();
+        const tabs = sheetData.sheets.map(sheet => sheet.properties.title);
 
-        document.getElementById('sheetId').value = sheetId;
-        document.getElementById('sheetName').value = sheetName;
-        document.getElementById('Title').value = items.Title || '';
-        document.getElementById('Description').value = items.Description || '';
-        document.getElementById('status').value = items.status || '';
-        document.getElementById('notes').value = items.notes || '';
+        localStorage.setItem(`cachedTabs_${sheetId}`, JSON.stringify(tabs));
 
-        if (sheetId) {
-            loadSheetNameDropdown(sheetId); 
+        return tabs;
+    } catch (error) {
+        console.error("Error fetching tabs:", error);
+        showMessage(`Error fetching tabs: ${error.message}`, true);
+        return [];
+    }
+}
 
-            applyDescriptionTemplate(sheetId, sheetName);
+async function fetchColumns(token, sheetId, tabName) {
+    const cacheKey = `cachedColumns_${sheetId}_${tabName}`;
+    const cachedColumns = localStorage.getItem(cacheKey); 
+    if (cachedColumns) {
+        return JSON.parse(cachedColumns);
+    }
+
+    try {
+        const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tabName)}!A1:Z1`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Error fetching columns: ${response.status} ${response.statusText}\n${errorText}`);
+            showMessage(`Error fetching columns: ${response.status} ${response.statusText}`, true);
+            throw new Error(`Error fetching columns: ${response.status} ${response.statusText}`);
         }
-    });
 
-    document.getElementById('sheetId').addEventListener('input', saveData);
-    document.getElementById('sheetName').addEventListener('input', saveData);
-    document.getElementById('Title').addEventListener('input', saveData);
-    document.getElementById('Description').addEventListener('input', saveData);
-    document.getElementById('status').addEventListener('input', saveData);
-    document.getElementById('notes').addEventListener('input', saveData);
+        const columnData = await response.json();
+        if (!columnData.values || columnData.values.length === 0) {
+            return [];
+        }
 
-    document.getElementById('saveButton').addEventListener('click', () => {
-        const sheetId = document.getElementById('sheetId').value;
-        const sheetName = document.getElementById('sheetName').value;
-        const Title = document.getElementById('Title').value;
-        const Description = document.getElementById('Description').value;
-        const status = document.getElementById('status').value;
-        const notes = document.getElementById('notes').value;
+        localStorage.setItem(cacheKey, JSON.stringify(columnData.values[0]));
 
-        chrome.storage.local.get('Url', (items) => {
-            const Url = items.Url;
+        return columnData.values[0];
+    } catch (error) {
+        console.error("Error fetching columns:", error);
+        showMessage(`Error fetching columns: ${error.message}`, true);
+        return [];
+    }
+}
 
-            if (sheetId && sheetName && Title && Url && Description) {
-                saveToGoogleSheets(sheetId, sheetName, Title, Url, Description, status, notes);
-                chrome.storage.local.set({ sheetId, sheetName });
-                chrome.storage.local.remove(['Title', 'Description', 'status', 'notes']);
+function getCurrentDate() {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; 
+}
 
-                document.getElementById('Title').value = '';
-                document.getElementById('Description').value = '';
-                document.getElementById('status').value = '';
-                document.getElementById('notes').value = '';
-                document.getElementById('applyFormattingCheckbox').checked = false;
+async function getActiveTabURL() {
+    return new Promise((resolve, reject) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length > 0) {
+                resolve(tabs[0].url);
             } else {
-                showMessage('Please fill in all required fields.', 'error');
+                reject('No active tab found');
             }
         });
     });
+}
 
-    document.getElementById('applyFormattingCheckbox').addEventListener('change', () => {
-        const sheetId = document.getElementById('sheetId').value;
-        const sheetName = document.getElementById('sheetName').value;
-    
-        if (document.getElementById('applyFormattingCheckbox').checked) {
-            const formattingKey = `formattingApplied_${sheetId}_${sheetName}`;
-            chrome.storage.local.get([formattingKey], (items) => {
-                const formattingApplied = items[formattingKey];
-    
-                if (sheetId && sheetName && !formattingApplied) {
-                    chrome.identity.getAuthToken({ interactive: true }, function (token) {
-                        applyConditionalFormatting(sheetId, sheetName, token, formattingKey);
-                    });
-                } else if (formattingApplied) {
-                    showMessage('Conditional formatting already applied for this sheet.', 'info');
+async function updateDataEntrySection(columns) {
+    const dataEntryFields = document.getElementById('data-entry-fields');
+    dataEntryFields.innerHTML = ''; 
+
+    const currentDate = getCurrentDate();
+    const currentURL = await getActiveTabURL();
+
+    columns.forEach(column => {
+        const normalizedColumn = column.trim().toLowerCase(); 
+
+        const field = document.createElement('div');
+        if (normalizedColumn === 'date') {
+            field.innerHTML = `<label>${column}: </label><input type="text" id="${column}" value="${currentDate}" readonly><br>`;
+        } else if (normalizedColumn === 'url') {
+            field.innerHTML = `<label>${column}: </label><input type="text" id="${column}" value="${currentURL}" readonly><br>`;
+        } else {
+            field.innerHTML = `<label>${column}: </label><input type="text" id="${column}"><br>`;
+        }
+        dataEntryFields.appendChild(field);
+    });
+
+    document.getElementById('data-entry-section').style.display = 'block'; 
+
+    loadInputValues(); 
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const isLoggedOut = localStorage.getItem('isLoggedOut') === 'true';
+        
+        if (isLoggedOut) {
+            document.getElementById('loginButton').style.display = 'block';
+            document.getElementById('logoutButton').style.display = 'none';
+            document.getElementById('sheet-dropdown').style.display = 'none';
+            document.getElementById('tab-selection').style.display = 'none';
+            document.getElementById('data-entry-section').style.display = 'none';
+        } else {
+            const token = await getOAuthToken(true);
+
+            if (!token) {
+                showMessage('Unable to obtain OAuth token', true);
+                throw new Error('OAuth token not obtained');
+            }
+
+            document.getElementById('loginButton').style.display = 'none';
+            document.getElementById('logoutButton').style.display = 'block';
+            document.getElementById('sheet-dropdown').style.display = 'block';
+
+            const sheets = await fetchAllSheets(token);
+            const dropdown = document.getElementById('sheet-dropdown');
+            const sheetList = document.getElementById('sheet-list');
+            sheetList.innerHTML = ''; 
+
+            const { sheet: savedSheet, tab: savedTab } = loadSelectedSheetAndTab(); 
+
+            if (sheets.length === 0) {
+                dropdown.style.display = 'none';
+                showMessage('No Google Sheets files found in your Drive.', true);
+            } else {
+                dropdown.style.display = 'block'; 
+                sheets.forEach(sheet => {
+                    const option = document.createElement('option');
+                    option.value = sheet.id; 
+                    option.text = sheet.name;
+                    if (savedSheet === sheet.id) {
+                        option.selected = true; 
+                    }
+                    sheetList.appendChild(option);
+                });
+
+                document.getElementById('tab-selection').style.display = 'block';
+
+                if (savedSheet) {
+                    await populateTabs(savedSheet, savedTab); 
                 } else {
-                    showMessage('Please provide both Sheet ID and Sheet Name.', 'error');
+                    const firstSheetId = sheets[0]?.id;
+                    if (firstSheetId) {
+                        await populateTabs(firstSheetId);
+                    }
                 }
+            }
+        }
+    } catch (error) {
+        console.error("Error initializing the page:", error);
+        showMessage(`Error initializing the page: ${error.message}`, true);
+    }
+});
+
+async function populateTabs(sheetId, savedTab = null) {
+    try {
+        const token = await getOAuthToken(true); 
+
+        const tabs = await fetchAllTabs(token, sheetId);
+        const tabDropdown = document.getElementById('tab-dropdown');
+        tabDropdown.innerHTML = ''; 
+
+        if (tabs.length === 0) {
+            tabDropdown.style.display = 'none';
+            showMessage('No tabs found in the selected sheet.', true);
+        } else {
+            let selectedTab = savedTab || tabs[0]; 
+
+            tabs.forEach((tab, index) => {
+                const option = document.createElement('option');
+                option.value = tab;
+                option.text = tab;
+                if (tab === selectedTab) {
+                    option.selected = true; 
+                }
+                tabDropdown.appendChild(option);
+            });
+
+            tabDropdown.style.display = 'block'; 
+
+            const tabName = tabDropdown.value || selectedTab; 
+
+            if (tabName) {
+                const columns = await fetchColumns(token, sheetId, tabName); 
+                if (columns.length > 0) {
+                    updateDataEntrySection(columns); 
+                } else {
+                    showMessage('No columns found in the selected tab.', true);
+                }
+
+                saveSelectedSheetAndTab(sheetId, tabName); 
+            } else {
+                showMessage('No tab selected.', true);
+            }
+        }
+    } catch (error) {
+        console.error("Error populating tabs:", error);
+        showMessage(`Error populating tabs: ${error.message}`, true);
+    }
+}
+
+document.getElementById('sheet-list').addEventListener('change', async () => {
+    const sheetId = document.getElementById('sheet-list').value;
+    await populateTabs(sheetId); 
+    saveSelectedSheetAndTab(sheetId, null); 
+});
+
+document.getElementById('tab-dropdown').addEventListener('change', async () => {
+    try {
+        const token = await getOAuthToken(true); 
+        const sheetId = document.getElementById('sheet-list').value;
+        const tabName = document.getElementById('tab-dropdown').value;
+
+        if (!sheetId || !tabName) {
+            showMessage('Please select both a sheet and a tab.', true);
+            return;
+        }
+
+        saveSelectedSheetAndTab(sheetId, tabName); 
+
+        const columns = await fetchColumns(token, sheetId, tabName);
+        if (columns.length > 0) {
+            updateDataEntrySection(columns);
+        } else {
+            showMessage('No columns found in the selected tab.', true);
+        }
+    } catch (error) {
+        console.error("Error fetching columns:", error);
+        showMessage(`Error fetching columns: ${error.message}`, true);
+    }
+});
+
+document.getElementById('saveRow').addEventListener('click', async () => {
+    try {
+        const token = await getOAuthToken(true); 
+
+        if (!token) {
+            showMessage('Unable to obtain OAuth token', true);
+            throw new Error('OAuth token not obtained');
+        }
+
+        const sheetId = document.getElementById('sheet-list').value;
+        const tabName = document.getElementById('tab-dropdown').value;
+        const values = {};
+
+        document.querySelectorAll('#data-entry-fields input').forEach(input => {
+            values[input.id] = input.value;
+        });
+
+        const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tabName}!A1:append?valueInputOption=USER_ENTERED`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                range: `${tabName}!A1`,
+                values: [Object.values(values)]
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Error saving data: ${response.status} ${response.statusText}\n${errorText}`);
+            showMessage('Error saving data', true);
+            throw new Error(`Error saving data: ${response.status} ${response.statusText}`);
+        }
+
+        showMessage('Data saved successfully!');
+        clearInputFields(); 
+    } catch (error) {
+        console.error("Error saving data:", error);
+        showMessage(`Error saving data: ${error.message}`, true);
+    }
+});
+
+document.getElementById('data-entry-fields').addEventListener('input', storeInputValues);
+
+document.getElementById('logoutButton').addEventListener('click', async () => {
+    chrome.identity.getAuthToken({ interactive: false }, function (token) {
+        if (token) {
+            chrome.identity.removeCachedAuthToken({ token }, function () {
+                console.log('Token revoked');
+                
+                fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Access revoked from Google');
+                        showMessage('Logged out successfully.');
+
+                        localStorage.removeItem('selectedSheet');
+                        localStorage.removeItem('selectedTab');
+                        localStorage.removeItem('dataEntryValues');
+                        document.getElementById('data-entry-fields').innerHTML = '';
+                        
+                        document.getElementById('sheet-dropdown').style.display = 'none';
+                        document.getElementById('tab-selection').style.display = 'none';
+                        document.getElementById('data-entry-section').style.display = 'none';
+                        document.getElementById('logoutButton').style.display = 'none';
+                        document.getElementById('loginButton').style.display = 'block';
+
+                        localStorage.setItem('isLoggedOut', 'true');
+                    } else {
+                        showMessage('Failed to revoke access from Google.', true);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error revoking access:', error);
+                    showMessage('Error revoking access.', true);
+                });
             });
         } else {
-            showMessage('Conditional formatting checkbox is not selected.', 'info');
+            console.error('No token found to revoke.');
+            showMessage('Error logging out.', true);
         }
     });
 });
 
-function saveData() {
-    const sheetId = document.getElementById('sheetId').value;
-    const sheetName = document.getElementById('sheetName').value;
-    const Title = document.getElementById('Title').value;
-    const Description = document.getElementById('Description').value;
-    const status = document.getElementById('status').value;
-    const notes = document.getElementById('notes').value;
-
-    chrome.storage.local.set({
-        sheetId,
-        sheetName,
-        Title,
-        Description,
-        status,
-        notes
-    });
-}
-
-function saveToGoogleSheets(sheetId, sheetName, Title, Url, Description, status, notes) {
-    chrome.identity.getAuthToken({ interactive: true }, function(token) {
-        const range = `'${sheetName}'!A1:F1`;
-        const currentDate = new Date().toISOString().split('T')[0];
-
-        const data = [
-            [currentDate, Title, Url, Description, status, notes]
-        ];
-
-        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}:append?valueInputOption=RAW`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                range: range,
-                majorDimension: "ROWS",
-                values: data
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Data saved:', data);
-            showMessage('Data saved to Google Sheets!', 'success');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('Failed to save data.', 'error');
-        });
-    });
-}
-
-function applyConditionalFormatting(sheetId, sheetName, token, formattingKey) {
-    fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties,conditionalFormats)&includeGridData=false`, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`
+document.getElementById('loginButton').addEventListener('click', async () => {
+    try {
+        const token = await getOAuthToken(true); 
+        if (!token) {
+            showMessage('Unable to obtain OAuth token', true);
+            throw new Error('OAuth token not obtained');
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const sheetInfo = data.sheets.find(sheet => sheet.properties.title === sheetName);
-        if (!sheetInfo) {
-            throw new Error(`Sheet with name "${sheetName}" not found.`);
-        }
-        const individualSheetId = sheetInfo.properties.sheetId;
+        showMessage('Logged in successfully!');
 
-        const existingRules = sheetInfo.conditionalFormats || [];
+        localStorage.removeItem('isLoggedOut');
 
-        const newRules = [
-            {
-                "booleanRule": {
-                    "condition": {
-                        "type": "CUSTOM_FORMULA",
-                        "values": [{ "userEnteredValue": `=$E1="todo"` }]
-                    },
-                    "format": { "backgroundColor": { "red": 0.9, "green": 0.9, "blue": 0.9 } }
-                },
-                "ranges": [
-                    {
-                        "sheetId": individualSheetId,
-                        "startRowIndex": 0,
-                        "endRowIndex": null, 
-                        "startColumnIndex": 0, 
-                        "endColumnIndex": 6 
-                    }
-                ]
-            },
-            {
-                "booleanRule": {
-                    "condition": {
-                        "type": "CUSTOM_FORMULA",
-                        "values": [{ "userEnteredValue": `=$E1="submitted"` }]
-                    },
-                    "format": { "backgroundColor": { "red": 0.7, "green": 0.85, "blue": 1 } }
-                },
-                "ranges": [
-                    {
-                        "sheetId": individualSheetId,
-                        "startRowIndex": 0,
-                        "endRowIndex": null, 
-                        "startColumnIndex": 0, 
-                        "endColumnIndex": 6 
-                    }
-                ]
-            },
-            {
-                "booleanRule": {
-                    "condition": {
-                        "type": "CUSTOM_FORMULA",
-                        "values": [{ "userEnteredValue": `=$E1="qualified"` }]
-                    },
-                    "format": { "backgroundColor": { "red": 0.85, "green": 0.8, "blue": 1 } }
-                },
-                "ranges": [
-                    {
-                        "sheetId": individualSheetId,
-                        "startRowIndex": 0,
-                        "endRowIndex": null, 
-                        "startColumnIndex": 0, 
-                        "endColumnIndex": 6 
-                    }
-                ]
-            },
-            {
-                "booleanRule": {
-                    "condition": {
-                        "type": "CUSTOM_FORMULA",
-                        "values": [{ "userEnteredValue": `=$E1="passed"` }]
-                    },
-                    "format": { "backgroundColor": { "red": 0.8, "green": 1, "blue": 0.8 } }
-                },
-                "ranges": [
-                    {
-                        "sheetId": individualSheetId,
-                        "startRowIndex": 0,
-                        "endRowIndex": null, 
-                        "startColumnIndex": 0, 
-                        "endColumnIndex": 6 
-                    }
-                ]
-            },
-            {
-                "booleanRule": {
-                    "condition": {
-                        "type": "CUSTOM_FORMULA",
-                        "values": [{ "userEnteredValue": `=$E1="failed"` }]
-                    },
-                    "format": { "backgroundColor": { "red": 1, "green": 0.8, "blue": 0.8 } }
-                },
-                "ranges": [
-                    {
-                        "sheetId": individualSheetId,
-                        "startRowIndex": 0,
-                        "endRowIndex": null, 
-                        "startColumnIndex": 0, 
-                        "endColumnIndex": 6 
-                    }
-                ]
+        document.getElementById('loginButton').style.display = 'none';
+        document.getElementById('logoutButton').style.display = 'block';
+        document.getElementById('sheet-dropdown').style.display = 'block';
+
+        const sheets = await fetchAllSheets(token); 
+        const dropdown = document.getElementById('sheet-dropdown');
+        const sheetList = document.getElementById('sheet-list');
+        sheetList.innerHTML = ''; 
+
+        const { sheet: savedSheet, tab: savedTab } = loadSelectedSheetAndTab(); 
+
+        if (sheets.length === 0) {
+            dropdown.style.display = 'none';
+            showMessage('No Google Sheets files found in your Drive.', true);
+        } else {
+            dropdown.style.display = 'block'; 
+            sheets.forEach(sheet => {
+                const option = document.createElement('option');
+                option.value = sheet.id; 
+                option.text = sheet.name;
+                if (savedSheet === sheet.id) {
+                    option.selected = true; 
+                }
+                sheetList.appendChild(option);
+            });
+
+            document.getElementById('tab-selection').style.display = 'block';
+
+            if (savedSheet) {
+                await populateTabs(savedSheet, savedTab); 
+            } else {
+                const firstSheetId = sheets[0]?.id;
+                if (firstSheetId) {
+                    await populateTabs(firstSheetId);
+                }
             }
-        ];
-
-        const rulesToAdd = newRules.filter(newRule => {
-            return !existingRules.some(existingRule =>
-                JSON.stringify(existingRule.booleanRule) === JSON.stringify(newRule.booleanRule)
-            );
-        });
-
-        if (rulesToAdd.length === 0) {
-            showMessage('Conditional formatting already applied.', 'info');
-            chrome.storage.local.set({ [formattingKey]: true });
-            return;
         }
-
-        const requests = rulesToAdd.map(rule => ({
-            "addConditionalFormatRule": { "rule": rule }
-        }));
-
-        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ requests })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Conditional formatting applied:', data);
-            showMessage('Conditional formatting applied!', 'success');
-            chrome.storage.local.set({ [formattingKey]: true });
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('Failed to apply conditional formatting.', 'error');
-        });
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showMessage('Failed to fetch sheet details.', 'error');
-    });
-}
-
-
-function showMessage(message, type) {
-    const messageElement = document.getElementById('message');
-    messageElement.textContent = message;
-
-    if (type === 'error') {
-        messageElement.style.backgroundColor = '#fdd';
-        messageElement.style.color = '#a94442';
-    } else {
-        messageElement.style.backgroundColor = '#dff0d8';
-        messageElement.style.color = '#3c763d';
+    } catch (error) {
+        console.error("Error logging in:", error);
+        showMessage(`Error logging in: ${error.message}`, true);
     }
-
-    messageElement.style.display = 'block'; 
-
-    setTimeout(() => {
-        messageElement.style.display = 'none'; 
-    }, 2000);
-}
+});

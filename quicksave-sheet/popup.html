@@ -2,121 +2,33 @@
 <html>
 <head>
     <title>Tracker</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 10px;
-            background-color: #f9f9f9;
-            color: #333;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            box-sizing: border-box; 
-            width: 200px; 
-            position: relative; 
-        }
-
-        h3 {
-            color: #809570;
-            text-align: center;
-            font-size: 1.5em; 
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        input[type="text"], textarea {
-            font-family: Arial, sans-serif;
-            width: 100%; 
-            padding: 10px;
-            margin: 0 auto;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 1em; 
-        }
-
-        textarea {
-            height: 60px;
-            resize: vertical;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #809570;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em; 
-        }
-
-        button:hover {
-            background-color: #c3d2b6;
-        }
-
-        button:active {
-            background-color: #809570;
-        }
-
-        #message {
-            display: none;
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            background-color: #fdd;
-            color: #a94442;
-            font-size: 0.9em;
-            text-align: center;
-            position: relative; 
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> 
 </head>
 <body>
-    <h3>Tracker</h3>
-    <div class="form-group" style="display: none;">
-        <input type="text" id="date" placeholder="Date" />
+    <div class="container">
+        <div id="sheet-dropdown" class="dropdown-section">
+            <label>Select a Google Sheet:</label>
+            <select id="sheet-list" class="dropdown"></select>
+        </div>
+
+        <div id="tab-selection" class="dropdown-section" style="display:none;">
+            <label>Select a tab:</label>
+            <select id="tab-dropdown" class="dropdown"></select>
+        </div>
+
+        <div id="data-entry-section" style="display:none;">
+            <div id="data-entry-fields"></div>
+            <button id="saveRow" class="button">Save to Sheet</button>
+        </div>
+
+        <button id="loginButton" class="button" style="display:none; margin-top: 20px;">Log In</button>
+        <button id="logoutButton" class="button" style="margin-top: 20px;">Log Out</button>
+
+        <div id="message" style="margin-top: 20px;"></div>
     </div>
-    <div class="form-group">
-        <select id="sheetId">
-            <option value="">Select a File</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <select id="sheetName">
-            <option value="">Select a Sheet Name</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <input type="text" id="Title" placeholder="Title" required />
-    </div>
-    <div class="form-group">
-        <textarea id="Description" placeholder="Description" required></textarea>
-    </div>
-    <div class="form-group">
-        <select id="status">
-            <option value="">Select Status</option>
-            <option value="todo">todo</option>
-            <option value="submitted">submitted</option>
-            <option value="qualified">qualified</option>
-            <option value="passed">passed</option>
-            <option value="failed">failed</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <textarea id="notes" placeholder="Notes"></textarea>
-    </div>
-    <div class="form-group">
-        <label><input type="checkbox" id="applyFormattingCheckbox" /> Apply Conditional Formatting</label>
-    </div>
-    <button id="saveButton">Save to Sheets</button>
-    <div id="message"></div>
+
+    <script src="oauth.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>
